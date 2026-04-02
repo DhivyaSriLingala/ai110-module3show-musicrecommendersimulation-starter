@@ -149,8 +149,51 @@ A `disliked_genres` field on the user profile would let the system hard-exclude 
 
 ## 9. Personal Reflection
 
+### Biggest Learning Moment
+
 The biggest thing I learned is that bias can live in the data, not just the code.
 
-I spent time tuning weights and running experiments, but the Gym Hero problem was never going to be fixed by changing a number. It was there because 7 out of 20 songs happened to share the same energy level and production style. No formula adjustment removes that overlap — only more diverse data does.
+I spent time tuning weights and running experiments expecting the Gym Hero problem to shrink. It never did. Gym Hero appeared in the top 5 for 8 out of 13 completely different user profiles — not because the formula was broken, but because 7 of the 20 catalog songs happened to share the same high-energy, low-acoustic profile. They all live in the same corner of the feature map. No weight adjustment can move them apart. Only a more diverse catalog could.
 
-The other thing that stuck with me is the gap between a high score and a good recommendation. During the weight experiment, some songs got higher scores under the new weights. But the recommendations felt worse. A hip-hop song ranking first for a folk listener is not better just because the math says 57.1% instead of 52.1%. The number went up; the result got worse. Real AI systems face this same gap at scale, and without a transparency feature that shows *why* a recommendation happened, users would never know the difference.
+That was a real shift in how I thought about the project. I kept asking "what weight is wrong?" when the actual question was "what is missing from the data?" Those are very different problems, and only one of them is solvable with a keyboard.
+
+---
+
+### How AI Tools Helped — and When I Had to Double-Check
+
+AI tools were genuinely useful for the parts of this project that require pattern recognition across a lot of information at once: designing a scoring formula that balanced six features, generating a diverse 20-song catalog without accidentally making it too uniform, and identifying edge cases like the midpoint collapse or out-of-range tempo profile that I might not have thought to test on my own.
+
+The adversarial profiles were a good example. When I asked for profiles designed to "trick" the scoring logic, the suggestions were grounded in the actual code — acoustic weight versus energy weight, what normalization does to a 220 BPM target, what happens when a genre has only one catalog entry. That kind of systematic thinking across the whole codebase at once was faster with an AI partner than doing it alone.
+
+But I had to double-check two things specifically.
+
+First, the suggested weights in an earlier draft of the README had mood ranked higher than genre. The intuition was "your current mood matters more than your long-term genre preference." That sounds reasonable, but when I ran the actual test — a pop/happy user choosing between Gym Hero (pop/intense) and Island Sunrise (reggae/happy) — genre-first produced the better result every time. The AI suggestion made logical sense as an argument; the data said something different. I had to run the experiment myself to know which was right.
+
+Second, the weight-sensitivity experiment. The prediction was that doubling the energy weight would meaningfully change the rankings. It did not — the #1 result was identical across every profile. The AI analysis was correct about *what changed* (ranks 2–5 shifted toward EDM and k-pop) but initially framed this as "making results more energy-accurate." Looking at the actual output, those results were worse for users, not better. The framing needed to be corrected by reading the output with human judgment, not just accepting the summary.
+
+The general pattern: AI tools were most reliable when generating options and identifying structure. They needed checking when making qualitative claims about whether a result was good.
+
+---
+
+### What Surprised Me About Simple Algorithms Feeling Like Recommendations
+
+I was surprised by how quickly a weighted formula starts to *feel* like it understands you — even when it clearly does not.
+
+When Focus Flow appeared first for the Late Night Coder profile at 97.6%, it genuinely felt correct. A lofi track with low energy, acoustic texture, and a focused mood — that is exactly what a late-night study session sounds like. The formula had no idea what studying feels like. It just added up six numbers and sorted them. But the output landed close enough to something a human would choose that it felt intentional.
+
+The flip side was just as striking. The Acoustic Intensity Conflict profile asked for high-energy folk music with acoustic texture. City Bounce — a hip-hop track — ranked first. That is obviously wrong to anyone who has listened to music for five minutes. But the formula was doing exactly the right thing: energy was worth more than acoustic texture (1.50 vs 0.75), and City Bounce had the right energy. The algorithm was not confused. It was consistent. The problem was that "consistent with its rules" and "useful to the person" are not the same thing.
+
+That gap is what real AI ethics conversations are about. A credit scoring model, a resume filter, a medical triage tool — they all have this same property. They are internally consistent. They optimize a number faithfully. And they can still produce results that feel completely wrong to the person receiving them, for reasons that are invisible without a transparency layer.
+
+---
+
+### What I Would Try Next
+
+**More catalog songs — at least 5 per genre.**
+This is the single change with the biggest impact. Right now a metal or classical fan gets one correct recommendation followed by four wrong ones. Five songs per genre would give the diversity filter and genre anchor room to work properly.
+
+**Mood adjacency scoring.**
+"Peaceful," "relaxed," and "chill" all mean roughly the same thing to a listener but score zero against each other in this system. A small similarity table — peaceful→relaxed: 0.7, chill→relaxed: 0.8 — would immediately produce better results for any user whose mood vocabulary differs slightly from the catalog labels. This is also closer to how Spotify actually handles mood: as a spectrum, not a binary label.
+
+**A feedback loop.**
+Right now the system has no memory. Every session starts from scratch. Even a simple thumbs-up / thumbs-down on the top result — stored in a file between runs — could let the system adjust weights over time. Did the user skip a high-energy song three times in a row? Probably reduce the energy target slightly next run. That would turn VibeFinder from a static formula into something that actually learns, which is the first step toward the kind of collaborative filtering that Spotify and YouTube use at scale.

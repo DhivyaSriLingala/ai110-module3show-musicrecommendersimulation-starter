@@ -955,14 +955,19 @@ You will go deeper on this in your model card.
 
 ## Reflection
 
-Read and complete `model_card.md`:
+The full personal reflection is in [**model_card.md § 9**](model_card.md). A summary is below.
 
-[**Model Card**](model_card.md)
+---
 
-Write 1 to 2 paragraphs here about what you learned:
+**How recommenders turn data into predictions**
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+Every recommendation in this system is just six numbers added up. Genre match, mood match, energy distance, emotional tone distance, acoustic preference, tempo distance — six scores, one total, sort descending, return the top five. There is no understanding happening. The system does not know what a lofi beat sounds like or why a folk song feels peaceful. It just compares labels and distances. And yet when it works — when Focus Flow appears first for the Late Night Coder at 97.6% — it genuinely *feels* like it understood the request. That gap between "adding up numbers" and "feeling understood" is what makes recommender systems both powerful and easy to misuse.
+
+**Where bias and unfairness showed up**
+
+The biggest surprise was that the main bias came from the *data*, not the *formula*. Gym Hero — a pop/intense song — appeared in the top 5 for 8 out of 13 user profiles, including people who asked for lofi, folk, classical, and synthwave. The formula was working correctly. The problem was that 7 of the 20 catalog songs shared the same high-energy, electronically produced profile, creating a dense cluster that every high-energy user got funneled into. No weight change fixed it. Changing the data would.
+
+That taught me something important about how real AI bias works. A hiring algorithm, a loan model, a medical tool — they can be internally consistent and still produce unfair results because of what is missing or overrepresented in the training data. The formula is the easy part to inspect. The data assumptions are much harder to see.
 
 
 ---
