@@ -1,253 +1,156 @@
-# Model Card: Music Recommender Simulation
+# Model Card: VibeFinder 1.0
+
+---
 
 ## 1. Model Name
 
-**VibeFinder 1.0** — a content-based music recommender simulation
+**VibeFinder 1.0**
+
+A content-based music recommender simulation built in Python for classroom use.
 
 ---
 
-## 2. Intended Use
+## 2. Goal / Task
 
-VibeFinder 1.0 suggests the top 5 songs from a 20-track catalog that best match a
-user's stated taste profile. A profile captures six preferences: favorite genre,
-current mood, desired energy level, whether the user prefers acoustic or produced
-sound, emotional positivity (valence), and target tempo in BPM.
+VibeFinder tries to answer one question: *"Given what a user likes, which songs in the catalog fit them best?"*
 
-The system is built for **classroom exploration only** — it is not deployed to real
-users. Its purpose is to demonstrate how a content-based recommender turns structured
-data into ranked suggestions, and to show explicitly where that process can go wrong.
-It assumes every user can articulate a single genre preference and a single mood, which
-is a simplification real streaming products do not make.
+It does not learn from listening history. It does not know what other users liked. It just looks at the features of each song — genre, mood, energy, acoustic texture, tempo, and emotional tone — and picks the five that match the user's stated preferences most closely.
+
+Think of it like a very attentive DJ who reads your mood card and flips through 20 records to find the closest matches.
 
 ---
 
-## 3. How the Model Works
+## 3. Data Used
 
-Every song in the catalog is given a score between 0 and 7 that measures how closely
-it matches the user's preferences. The score is built by adding up six separate
-partial scores — one for each feature — and the songs with the highest totals are
-recommended.
+**Catalog size:** 20 songs, stored in `data/songs.csv`.
 
-Two features are checked as simple yes/no matches: genre and mood. If a song's genre
-matches the user's favorite genre it earns 2 points; if not, it earns nothing. Mood
-works the same way for up to 1.5 points. The remaining four features — energy,
-emotional tone, acoustic texture, and tempo — use a bell-curve formula instead of a
-yes/no check. This means a song that is slightly off on energy still earns nearly full
-points, while a song that is very far off earns almost none. The bell-curve approach
-mirrors how music actually feels: a song 0.05 energy units from your target is barely
-noticeable, but a song 0.40 units away sounds completely wrong.
+**Each song has 10 fields:**
+- Metadata: id, title, artist
+- Categorical: genre, mood
+- Numeric (0–1 scale): energy, valence, acousticness, danceability
+- Numeric (BPM): tempo
 
-After scoring, songs are sorted by score and a diversity rule removes any artist that
-appears more than twice or any genre that appears more than three times in the top
-results, so the list does not flood with the same artist.
+**Genre coverage:** 17 genres — pop, lofi, rock, ambient, jazz, synthwave, indie pop, r&b, hip-hop, classical, country, metal, edm, blues, folk, reggae, k-pop.
 
----
+**Mood coverage:** 14 moods — happy, chill, intense, melancholic, relaxed, moody, focused, romantic, energetic, nostalgic, angry, euphoric, peaceful, uplifting.
 
-## 4. Data
-
-The catalog contains **20 songs** stored in `data/songs.csv`. Each song has ten
-fields: a numeric ID, title, artist, genre, mood, and five numeric audio features
-(energy, tempo in BPM, valence, danceability, acousticness).
-
-The catalog was manually designed to cover **17 distinct genres** (pop, lofi, rock,
-ambient, jazz, synthwave, indie pop, r&b, hip-hop, classical, country, metal, edm,
-blues, folk, reggae, k-pop) and **14 distinct moods**. However, genre representation
-is deeply uneven: lofi has 3 songs, pop has 2, and every other genre has exactly 1.
-This means a lofi user has three catalog entries to rank against while a metal, jazz,
-or classical user has only one.
-
-The catalog was hand-crafted by the developer for a Western, English-language music
-context. It does not include songs in other languages, genres from non-Western
-traditions, or any music from before the 1990s. All numeric features were assigned
-manually rather than measured from real audio, so they reflect the developer's
-perception of each song's characteristics rather than objective measurements.
+**Big limits to know about:**
+- The catalog is tiny. Most genres have exactly one song. If your genre has no match, the system guesses from energy and mood alone.
+- All numeric features were assigned by hand — they reflect the developer's opinion, not measured audio data.
+- No non-Western genres. No non-English music. No music from before the 1990s.
+- The catalog has no songs that are both high-energy AND highly acoustic. That means some user preferences are impossible to satisfy at the same time.
 
 ---
 
-## 5. Strengths
+## 4. Algorithm Summary
 
-The system works best for users whose genre preference has at least two or three songs
-in the catalog and whose energy and valence targets fall in a clearly distinct range.
-The Late Night Coder (lofi/focused/low-energy) and Sunday Morning (folk/peaceful/
-low-energy) profiles both receive top results above 97% match because the catalog
-contains songs that align on every dimension simultaneously.
+Every song gets a score out of 7.00. The score is built from six parts.
 
-The transparency is a genuine strength. Every recommendation prints a plain-English
-reason list showing exactly how many points each feature contributed, along with a
-`+`, `~`, or `-` quality marker. A user can see immediately why a song ranked where
-it did rather than receiving a black-box suggestion.
+**The six parts:**
 
-The Gaussian bell-curve proximity formula also works well for the system's intended
-scale. It correctly treats a 0.02-unit energy difference as nearly perfect while
-heavily penalizing a 0.40-unit difference — a behavior that feels natural and that
-a linear formula would not produce.
+| Feature | Max points | How it works |
+|---|---|---|
+| Genre | 2.00 | Full points if the genre label matches exactly. Zero if it doesn't. |
+| Mood | 1.50 | Same — full or zero, no in-between. |
+| Energy | 1.50 | A bell curve. Close to your target = almost full points. Far away = almost zero. |
+| Valence (happiness) | 1.00 | Same bell-curve approach. |
+| Acoustic texture | 0.75 | If you like acoustic, songs with high acousticness score higher. If you prefer produced sound, it flips. |
+| Tempo | 0.25 | Bell curve again, but the lowest weight because tempo already correlates with energy. |
 
----
+**Why a bell curve instead of simple subtraction?**
+Because a song that is 0.02 energy units off your target should feel almost perfect. A song that is 0.40 units off should feel clearly wrong. Simple subtraction treats both gaps the same way. The bell curve does not — it is forgiving for small differences and harsh for large ones.
 
-## 6. Limitations and Bias
-
-### Primary Weakness: The High-Energy Produced-Sound Gravity Well
-
-The most significant bias discovered through experimentation is a **catalog clustering
-problem**: seven of the twenty songs (35%) are simultaneously high-energy (≥ 0.80)
-and low-acoustic (≤ 0.25) — Gym Hero, Iron Eclipse, Neon Sunrise, Storm Runner, Neon
-Confetti, City Bounce, and Sunrise City. Because the Gaussian energy scorer rewards
-closeness to a target, any profile with a high energy target will score all seven of
-these songs nearly equally on the energy dimension, making genre and mood the only
-meaningful tiebreakers among them. In practice this means Gym Hero — a pop/intense
-song — appeared in the top-5 results for **8 of 13 test profiles**, including profiles
-for users who wanted lofi, folk, synthwave, and classical music. The song is not a
-good recommendation for those users; it simply has no high-energy competitor to
-displace it in its feature neighborhood. This is a filter bubble: high-energy users
-are funneled into the same small cluster of produced songs regardless of what genre
-or mood they asked for.
-
-The sensitivity experiment confirmed this is a structural problem, not a weight
-problem. When the energy weight was doubled (1.50 → 3.00) and genre halved
-(2.00 → 1.00), Gym Hero's top-5 frequency did not change — it was still 8 of 13.
-EDM and k-pop songs gained additional slots in pop and rock lists, making results
-worse, not better. The cluster is too dense to break up by adjusting weights alone.
-A real fix would require either adding more high-energy songs in underrepresented
-genres (jazz, folk, classical) or adding an explicit genre-diversity constraint that
-prevents any genre cluster from appearing more than once when a genre mismatch exists.
-
-### Additional Limitations
-
-- **Lofi over-representation:** Lofi is the only genre with 3 catalog songs. Lofi
-  users receive genuinely varied recommendations while users of 15 other genres have
-  at most one true match.
-- **Mood adjacency is ignored:** The system treats "chill," "relaxed," and "peaceful"
-  as completely different moods with zero overlap. A "focused" user gets zero mood
-  points from Coffee Shop Stories (jazz/relaxed) even though that song is objectively
-  suitable study music.
-- **No negative preferences:** A user can only express attraction, not aversion. There
-  is no way to say "never recommend metal" — low-scoring songs still appear if nothing
-  else scores higher.
-- **Genre lock-in ceiling:** A genre-matching song with near-worst scores on every
-  continuous feature still earns 29.5% of MAX_SCORE from genre and mood alone, letting
-  it outrank a genre-mismatched song with perfect continuous alignment (48.1% maximum
-  without the genre bonus). This means the system can recommend a stylistically
-  appropriate but musically mismatched song simply because the genre label matched.
+**After scoring:**
+Songs are sorted by score. A diversity rule prevents the same artist from appearing more than twice or the same genre more than three times in the final list.
 
 ---
 
-## 7. Evaluation
+## 5. Observed Behavior / Biases
 
-### Profiles Tested
+**The biggest problem: Gym Hero keeps showing up for everyone.**
 
-Thirteen distinct user profiles were run against the 20-song catalog, split into
-two groups.
+Gym Hero is a pop/intense song with very high energy (0.93) and very low acousticness (0.05). It appeared in the top 5 for 8 out of 13 completely different user profiles — including lofi fans, folk listeners, and classical music users.
 
-**Group 1 — Core taste profiles** (realistic everyday listeners):
+Here is why in plain language: the catalog has 7 songs that are all high-energy and electronically produced (Gym Hero, Iron Eclipse, Neon Sunrise, Storm Runner, Neon Confetti, City Bounce, Sunrise City). They are all crammed into the same corner of the "map." When a user asks for high energy, all 7 score almost identically on that dimension, and Gym Hero floats to the top because its pop genre happens to overlap with nearby profiles. It is not a broken formula — it is a catalog that is too small and unevenly distributed.
 
-| Profile | Genre | Mood | Energy | What it represents |
-|---|---|---|---|---|
-| Default Pop/Happy | pop | happy | 0.80 | Baseline verification — should prefer bright, upbeat pop |
-| Late Night Coder | lofi | focused | 0.40 | Low-intensity background music for concentration |
-| Weekend Warrior | pop | intense | 0.92 | High-energy workout or party playlist |
-| Sunday Morning | folk | peaceful | 0.28 | Very quiet, organic, unhurried listening |
-| Dark Commute | synthwave | moody | 0.75 | Medium-high energy with a brooding emotional tone |
+Doubling the energy weight did not fix this. Gym Hero still appeared 8 times. The problem is structural, not a tuning issue.
 
-**Group 2 — Evaluation and adversarial profiles** (designed to stress-test the logic):
+**Other biases found:**
 
-| Profile | Purpose |
+- **Lofi gets three songs; most genres get one.** Lofi users receive better, more varied recommendations than metal, jazz, or classical users — purely because of how the catalog was built.
+- **Moods are all-or-nothing.** "Chill" and "relaxed" are treated as completely different. A focused user gets zero mood points from a jazz/relaxed song, even though that song is clearly suitable background study music.
+- **No way to say "never this."** Users can only say what they want, not what they hate. A user who dislikes metal cannot exclude it — if nothing else scores higher, a metal song will still appear.
+- **Genre can win even when every other feature is wrong.** A song that matches your genre but sounds nothing like what you asked for still earns 29.5% of the max score. That is sometimes enough to beat a song that fits perfectly on energy, mood, and texture but has a different genre label.
+
+---
+
+## 6. Evaluation Process
+
+**How it was tested:**
+
+13 user profiles were run against the catalog. Five were realistic everyday listeners. Eight were designed specifically to expose weaknesses.
+
+**The five core profiles:**
+
+| Profile | What it tested |
 |---|---|
-| A: High-Energy Pop | Genre match at near-max intensity — should behave like Default Pop/Happy but skewed faster |
-| B: Chill Lofi | Genre + mood double-match at the calm extreme — expected near-perfect top result |
-| C: Deep Intense Rock | Only one rock song in catalog — tests what happens after the genre pool runs out |
-| D: High-Energy Melancholic | Classical genre + energy 0.92 — the catalog's only classical song has energy 0.22 |
-| E: Midpoint Collapse | All continuous features set to 0.50 — tests what the system does with a neutral user |
-| F: Niche Metal Fan | Metal genre with one catalog entry — tests the genre cliff |
-| G: Acoustic Intensity Conflict | Likes acoustic sounds AND wants energy 0.90 — those two preferences are mutually exclusive in this catalog |
-| H: Out-of-Range Tempo | Target BPM of 220, above the catalog maximum of 168 — tests normalization edge case |
+| Default Pop/Happy | Baseline — should prefer bright, upbeat pop |
+| Late Night Coder | Quiet, focused, acoustic background music |
+| Weekend Warrior | Maximum energy workout playlist |
+| Sunday Morning | Slow, organic, peaceful folk |
+| Dark Commute | Medium-high energy with a dark tone |
 
-### What the Results Showed
+**The adversarial profiles were designed to "trick" the system:**
 
-The results fell into three categories: profiles that worked as expected, profiles
-that revealed a real limitation, and one result that was genuinely surprising.
+- *High-Energy Melancholic* — asked for classical music at energy 0.92. The only classical song has energy 0.22. Did the genre bonus override the energy mismatch? Yes — Rainy Sonata still ranked first at 63.9% despite scoring near-zero on three features. The genre + mood double-bonus (50% of max score) was too big to overcome.
+- *Midpoint Collapse* — set all continuous preferences to exactly 0.50. The system had almost no signal to rank on and fell back to whoever had the right genre and mood label.
+- *Acoustic Intensity Conflict* — wanted acoustic AND high-energy. No song in the catalog has both. City Bounce (hip-hop, acousticness=0.08) ranked first for a user who explicitly said they prefer acoustic sound. Numerically correct; practically wrong.
+- *Niche Metal Fan* — only one metal song exists. Iron Eclipse scored 99.5% at #1. Then the score dropped 60 percentage points to #2. Ranks 2–5 included pop, EDM, and k-pop songs a real metal fan would likely skip.
 
-**Profiles that worked as expected:**
-Late Night Coder, Sunday Morning, Weekend Warrior, and Dark Commute all returned
-a clear, sensible #1 result above 97% match. These profiles worked well because
-the catalog happened to contain at least one song that aligned on genre, mood, energy,
-and acousticness simultaneously. When every feature points in the same direction, the
-scoring system functions correctly and the result feels right intuitively.
+**One experiment was run:**
+Energy weight was doubled (1.50 → 3.00) and genre weight was halved (2.00 → 1.00). The #1 result was identical across all profiles — proving that genre + mood bonuses are too strong to dislodge even at half weight. The only visible effect was EDM and k-pop songs flooding into genre-mismatched lists, making recommendations worse, not better.
 
-**Profiles that revealed limitations:**
-The Deep Intense Rock profile (C) showed what happens when the catalog runs out of
-genre-matching songs. Storm Runner ranked #1 at 94.6% — genuinely correct — but
-ranks 2 through 5 were Gym Hero (pop), Iron Eclipse (metal), Neon Sunrise (EDM), and
-Neon Confetti (k-pop). A rock fan would not consider three of those five suggestions
-relevant. The system had no more rock songs to offer and filled the remaining slots
-with the highest-scoring non-rock songs by energy and tempo similarity alone.
-
-The Acoustic Intensity Conflict profile (G) also exposed a real ceiling: no song in
-the catalog is both highly acoustic and high-energy. The two properties point in
-opposite directions in every single song in the dataset. The system correctly ranked
-by the stronger weight (energy > acoustic), but the result was that City Bounce
-(hip-hop/energetic, acousticness=0.08) appeared first for a user who explicitly said
-they prefer acoustic-sounding music. Numerically consistent; intuitively wrong.
-
-**The most surprising result:**
-Profile D — High-Energy Melancholic — produced the most counterintuitive output.
-The user asked for classical music at high energy. The catalog's only classical song,
-Rainy Sonata, has energy=0.22 — a 0.70-unit gap from the target of 0.92. On the
-energy dimension alone, that gap is so large the Gaussian formula returns essentially
-zero. Yet Rainy Sonata still ranked first at 63.9%.
-
-Why? Because "classical" and "melancholic" matched exactly, earning 3.50 points out
-of 7.00 from genre and mood alone before a single continuous feature was checked.
-That 50% head-start from two label matches was enough to beat every other song despite
-three features scoring near-zero. The system was not broken — it did exactly what the
-weights told it to do. But a person listening to the result would hear a quiet,
-slow, acoustic classical piece when they asked for loud, energetic classical music.
-
-### The Gym Hero Question
-
-The most consistent pattern across all thirteen profiles was Gym Hero (pop/intense)
-appearing in the top 5 even for users who asked for lofi, folk, classical, or
-synthwave music. See `reflection.md` for a plain-language explanation of why this
-happens and what it reveals about the system.
+**What surprised me most:**
+That the #1 result never changed during the weight experiment. I expected something to move. Nothing did. The genre anchor is much stickier than I thought.
 
 ---
 
-## 8. Future Work
+## 7. Intended Use and Non-Intended Use
 
-- **Expand the catalog** to at least 5 songs per genre so that the diversity penalty
-  and genre anchor can work as intended without leaving niche-genre users with a single
-  match.
-- **Add mood adjacency scoring** using a similarity matrix (e.g., "peaceful" and
-  "relaxed" share 0.6 similarity) so users who describe moods with slightly different
-  words still get relevant results.
-- **Introduce negative preferences** — a `disliked_genres` or `disliked_moods` list
-  that applies a hard exclusion or score floor of 0 for explicitly rejected content.
-- **Measure real audio features** using a tool like Spotify's audio analysis API
-  instead of hand-assigning numeric values, removing the developer's perception bias
-  from every feature in the catalog.
-- **Add a "surprise" mode** that deliberately injects one lower-scoring cross-genre
-  song per session to break filter bubbles and expose users to music outside their
-  declared preference cluster.
+**This system IS designed for:**
+- Learning how content-based recommenders work
+- Exploring how small changes to weights change which songs rank first
+- Understanding where bias comes from in AI recommendation systems
+- Classroom or portfolio projects that need a transparent, explainable scoring system
+
+**This system is NOT designed for:**
+- Real music listeners who expect accurate recommendations
+- Production use in any app or service
+- Users with niche musical tastes — if your genre has one song in the catalog, results will be poor
+- Personalization based on listening history — this system has no memory and learns nothing over time
+- Non-Western music, non-English genres, or any musical tradition not represented in the 20-song catalog
+
+If someone used this to actually recommend music, they would frequently receive genre-mismatched songs that score well only because their energy level happened to be close to the user's target. That is not a useful recommendation in practice.
+
+---
+
+## 8. Ideas for Improvement
+
+**1. Expand the catalog — at least 5 songs per genre.**
+Right now most genres have one song. After the #1 result, the system has nothing genre-appropriate to suggest. A larger catalog would let the diversity rule and genre anchor both work as intended. This is the single change that would most improve result quality.
+
+**2. Add mood adjacency — nearby moods should earn partial credit.**
+"Chill," "relaxed," and "peaceful" should not score zero against each other. A simple lookup table that gives "chill vs. relaxed" a 0.6 similarity score instead of 0.0 would immediately improve recommendations for users whose mood vocabulary differs slightly from the catalog labels.
+
+**3. Let users say what they dislike.**
+A `disliked_genres` field on the user profile would let the system hard-exclude certain songs instead of surfacing them whenever nothing better scores higher. A metal fan who also hates EDM should be able to say so.
 
 ---
 
 ## 9. Personal Reflection
 
-Building this system made the invisible machinery of real recommenders tangible in a
-way that reading about them does not. The most striking moment was discovering that
-Gym Hero appeared in 8 of 13 different user profiles' top-5 lists — not because the
-weights were wrong or the algorithm was broken, but because the catalog itself was
-unevenly distributed. The system was doing exactly what it was designed to do; the
-bias was in the data, not the code. That distinction matters: you can inspect and
-adjust weights all day, but if the underlying catalog has a structural gap — too many
-high-energy produced songs, not enough acoustic high-energy songs — no weight change
-will fix it.
+The biggest thing I learned is that bias can live in the data, not just the code.
 
-The experiment of doubling energy weight reinforced this. I expected a dramatic
-change in results. Instead, the #1 song was identical across every profile and the
-only visible effect was EDM and k-pop songs flooding into genre-mismatched lists.
-The genre anchor was more stable than I anticipated, and the energy change made
-results feel less accurate even though the numeric scores went up. That gap between
-"higher score" and "better recommendation" is probably the most important thing I
-took from this project. A real AI system can optimize a number very effectively while
-quietly making worse decisions for actual users — and without transparency features
-like the reason list this system prints, you would never know.
+I spent time tuning weights and running experiments, but the Gym Hero problem was never going to be fixed by changing a number. It was there because 7 out of 20 songs happened to share the same energy level and production style. No formula adjustment removes that overlap — only more diverse data does.
+
+The other thing that stuck with me is the gap between a high score and a good recommendation. During the weight experiment, some songs got higher scores under the new weights. But the recommendations felt worse. A hip-hop song ranking first for a folk listener is not better just because the math says 57.1% instead of 52.1%. The number went up; the result got worse. Real AI systems face this same gap at scale, and without a transparency feature that shows *why* a recommendation happened, users would never know the difference.
