@@ -133,26 +133,81 @@ prevents any genre cluster from appearing more than once when a genre mismatch e
 
 ## 7. Evaluation
 
-Five core UserProfile taste profiles were tested (Default Pop/Happy, Late Night Coder,
-Weekend Warrior, Sunday Morning, Dark Commute) plus eight evaluation dict profiles
-covering standard benchmarks and adversarial edge cases.
+### Profiles Tested
 
-The key evaluation method was **cross-profile frequency counting**: tracking how many
-of the 13 test profiles each song appeared in within the top 5. This revealed Gym
-Hero's gravity-well dominance (8 appearances) and Neon Confetti's over-presence
-despite never ranking first (6 appearances, 0 #1s).
+Thirteen distinct user profiles were run against the 20-song catalog, split into
+two groups.
 
-A weight-sensitivity experiment was also run: doubling energy weight and halving genre
-weight. The finding that #1 results were unchanged across all profiles confirmed that
-the genre + mood categorical bonus is robust — two matching labels create a lead that
-a halved weight cannot fully overcome.
+**Group 1 — Core taste profiles** (realistic everyday listeners):
 
-The most surprising result was the adversarial "High-Energy Melancholic" profile:
-Rainy Sonata (classical/melancholic, energy=0.22) ranked first at 63.9% despite
-earning near-zero points on three of six features. The genre + mood double-bonus
-(3.50 pts) was strong enough to overcome an energy Gaussian score of essentially 0.
-This showed that categorical features can dominate results in ways that feel
-counterintuitive when the continuous features are severely misaligned.
+| Profile | Genre | Mood | Energy | What it represents |
+|---|---|---|---|---|
+| Default Pop/Happy | pop | happy | 0.80 | Baseline verification — should prefer bright, upbeat pop |
+| Late Night Coder | lofi | focused | 0.40 | Low-intensity background music for concentration |
+| Weekend Warrior | pop | intense | 0.92 | High-energy workout or party playlist |
+| Sunday Morning | folk | peaceful | 0.28 | Very quiet, organic, unhurried listening |
+| Dark Commute | synthwave | moody | 0.75 | Medium-high energy with a brooding emotional tone |
+
+**Group 2 — Evaluation and adversarial profiles** (designed to stress-test the logic):
+
+| Profile | Purpose |
+|---|---|
+| A: High-Energy Pop | Genre match at near-max intensity — should behave like Default Pop/Happy but skewed faster |
+| B: Chill Lofi | Genre + mood double-match at the calm extreme — expected near-perfect top result |
+| C: Deep Intense Rock | Only one rock song in catalog — tests what happens after the genre pool runs out |
+| D: High-Energy Melancholic | Classical genre + energy 0.92 — the catalog's only classical song has energy 0.22 |
+| E: Midpoint Collapse | All continuous features set to 0.50 — tests what the system does with a neutral user |
+| F: Niche Metal Fan | Metal genre with one catalog entry — tests the genre cliff |
+| G: Acoustic Intensity Conflict | Likes acoustic sounds AND wants energy 0.90 — those two preferences are mutually exclusive in this catalog |
+| H: Out-of-Range Tempo | Target BPM of 220, above the catalog maximum of 168 — tests normalization edge case |
+
+### What the Results Showed
+
+The results fell into three categories: profiles that worked as expected, profiles
+that revealed a real limitation, and one result that was genuinely surprising.
+
+**Profiles that worked as expected:**
+Late Night Coder, Sunday Morning, Weekend Warrior, and Dark Commute all returned
+a clear, sensible #1 result above 97% match. These profiles worked well because
+the catalog happened to contain at least one song that aligned on genre, mood, energy,
+and acousticness simultaneously. When every feature points in the same direction, the
+scoring system functions correctly and the result feels right intuitively.
+
+**Profiles that revealed limitations:**
+The Deep Intense Rock profile (C) showed what happens when the catalog runs out of
+genre-matching songs. Storm Runner ranked #1 at 94.6% — genuinely correct — but
+ranks 2 through 5 were Gym Hero (pop), Iron Eclipse (metal), Neon Sunrise (EDM), and
+Neon Confetti (k-pop). A rock fan would not consider three of those five suggestions
+relevant. The system had no more rock songs to offer and filled the remaining slots
+with the highest-scoring non-rock songs by energy and tempo similarity alone.
+
+The Acoustic Intensity Conflict profile (G) also exposed a real ceiling: no song in
+the catalog is both highly acoustic and high-energy. The two properties point in
+opposite directions in every single song in the dataset. The system correctly ranked
+by the stronger weight (energy > acoustic), but the result was that City Bounce
+(hip-hop/energetic, acousticness=0.08) appeared first for a user who explicitly said
+they prefer acoustic-sounding music. Numerically consistent; intuitively wrong.
+
+**The most surprising result:**
+Profile D — High-Energy Melancholic — produced the most counterintuitive output.
+The user asked for classical music at high energy. The catalog's only classical song,
+Rainy Sonata, has energy=0.22 — a 0.70-unit gap from the target of 0.92. On the
+energy dimension alone, that gap is so large the Gaussian formula returns essentially
+zero. Yet Rainy Sonata still ranked first at 63.9%.
+
+Why? Because "classical" and "melancholic" matched exactly, earning 3.50 points out
+of 7.00 from genre and mood alone before a single continuous feature was checked.
+That 50% head-start from two label matches was enough to beat every other song despite
+three features scoring near-zero. The system was not broken — it did exactly what the
+weights told it to do. But a person listening to the result would hear a quiet,
+slow, acoustic classical piece when they asked for loud, energetic classical music.
+
+### The Gym Hero Question
+
+The most consistent pattern across all thirteen profiles was Gym Hero (pop/intense)
+appearing in the top 5 even for users who asked for lofi, folk, classical, or
+synthwave music. See `reflection.md` for a plain-language explanation of why this
+happens and what it reveals about the system.
 
 ---
 
