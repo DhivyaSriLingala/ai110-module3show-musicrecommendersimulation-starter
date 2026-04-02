@@ -872,11 +872,70 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### Experiment 1 — Weight Shift: Energy ×2, Genre ÷2
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+**Change applied:**
+
+| Feature | Original weight | Experimental weight |
+|---|---|---|
+| `genre` | 2.00 | **1.00** (halved) |
+| `energy` | 1.50 | **3.00** (doubled) |
+| All others | unchanged | unchanged |
+| **MAX_SCORE** | 7.00 | **7.50** (auto-recomputed) |
+
+**Motivation:** The previous analysis showed Gym Hero appearing in 8 of 13 top-5 lists
+despite often having no genre or mood match. The hypothesis was that halving genre weight
+and doubling energy weight would either (a) expose that energy was already the dominant
+axis — confirming it needed no increase — or (b) produce more "energy-accurate" results
+by letting high-energy songs compete across genre boundaries.
+
+**What changed in the rankings:**
+
+| Profile | Original #1 | Experiment #1 | Changed? |
+|---|---|---|---|
+| Default Pop/Happy | Sunrise City 97.9% | Sunrise City 98.0% | No — same song, marginally higher |
+| Late Night Coder | Focus Flow 97.6% | Focus Flow 97.8% | No |
+| Weekend Warrior | Gym Hero 99.4% | Gym Hero 99.4% | No |
+| Sunday Morning | Willow Wind 99.3% | Willow Wind 99.4% | No |
+| Dark Commute | Night Drive Loop 97.4% | Night Drive Loop 97.6% | No |
+
+The #1 song was **identical across all profiles.** Songs with a genre + mood double-match
+hold such a large combined lead that even halving genre still leaves them on top.
+
+**What changed in ranks 2–5:**
+
+- **Default Pop/Happy:** Rooftop Lights jumped from #3 to #2 (indie pop/happy — its
+  near-perfect energy match became worth 3.00 pts instead of 1.50, overtaking Gym Hero)
+- **Weekend Warrior:** Storm Runner climbed from #3 to #2 (rock/intense — energy=0.91
+  is nearly identical to Gym Hero's 0.93, so the energy gap between them collapsed)
+- **Midpoint Collapse (E):** Spacewalk Thoughts dropped from #1 to effectively tied with
+  mood-match songs — the energy=0.28 vs target=0.50 gap became worth 3× as much, hurting it
+
+**Cross-profile recurrence (experiment vs. original):**
+
+| Song | Original top-5 count | Experiment top-5 count |
+|---|---|---|
+| Gym Hero | 8 | 8 — unchanged |
+| Neon Sunrise (edm) | 5 | 7 — gained 2 slots |
+| Neon Confetti (k-pop) | 6 | 7 — gained 1 slot |
+| Gym Hero (still dominant) | already dominant | no change |
+
+Neon Sunrise and Neon Confetti — both high-energy EDM/k-pop songs — gained slots across
+multiple profiles purely because their near-max energy values became worth 3.00 pts instead
+of 1.50. This is the experiment's most meaningful finding.
+
+**Verdict: More different than accurate.**
+
+The change made ranks 2–5 more energy-centric but did not make the system *feel* more
+correct. A pop/happy user getting Neon Sunrise (EDM/euphoric) at #4 instead of Island
+Sunrise (reggae/happy) is a worse recommendation despite a higher numeric score.
+The original genre=2.00 weight correctly keeps the results grounded in the user's stated
+sonic world. **The experiment confirms the original weights were well-calibrated:**
+doubling energy weight rewarded numerically close songs that are stylistically wrong,
+which is precisely what the genre anchor is designed to prevent.
+
+**Weights restored to original** (`genre=2.00, energy=1.50, MAX=7.00`) after the
+experiment was recorded.
 
 ---
 
