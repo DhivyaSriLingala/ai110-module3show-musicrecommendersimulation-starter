@@ -91,14 +91,13 @@ final ranked list. The **Scoring Loop** runs independently for every song; the
 ```mermaid
 flowchart TD
     CSV[("data/songs.csv\n20 songs")]
-    UP(["UserProfile\ngenre · mood · energy\nvalence · tempo · acoustic"])
+    UP["UserProfile\ngenre - mood - energy\nvalence - tempo - acoustic"]
 
-    CSV --> LOAD["load_songs()\nParse CSV rows\ninto List[Dict]"]
+    CSV --> LOAD["load_songs()\nParse CSV rows\ninto List of Dicts"]
     UP  --> LOOP
-
     LOAD --> LOOP
 
-    subgraph LOOP["SCORING LOOP — runs once per song"]
+    subgraph LOOP["SCORING LOOP - runs once per song"]
         direction TB
         PICK["Pick next song\nfrom catalog"]
         GM{"Genre\nmatch?"}
@@ -107,28 +106,28 @@ flowchart TD
         MM{"Mood\nmatch?"}
         MP["+ 1.50 pts"]
         MZ["+ 0.00 pts"]
-        EN["Gaussian(energy, σ=0.20)\n× 1.50  →  0.03 – 1.50 pts"]
-        VA["Gaussian(valence, σ=0.25)\n× 1.00  →  0.00 – 1.00 pts"]
-        AC["Acoustic alignment\n× 0.75  →  0.00 – 0.75 pts"]
-        TE["Gaussian(tempo_norm, σ=0.20)\n× 0.25  →  0.00 – 0.25 pts"]
-        SUM["song_score = sum of parts\nmax possible = 7.00"]
-        STORE["Store song, score pair"]
+        EN["Gaussian energy, s=0.20\nx 1.50, range 0.03 to 1.50 pts"]
+        VA["Gaussian valence, s=0.25\nx 1.00, range 0.00 to 1.00 pts"]
+        AC["Acoustic alignment\nx 0.75, range 0.00 to 0.75 pts"]
+        TE["Gaussian tempo norm, s=0.20\nx 0.25, range 0.00 to 0.25 pts"]
+        SUM["song score = sum of parts\nmax possible = 7.00"]
+        STORE["Store song and score"]
         MORE{"More songs?"}
 
         PICK --> GM
         GM -->|Yes| GP --> MM
-        GM -->|No | GZ --> MM
+        GM -->|No| GZ --> MM
         MM -->|Yes| MP --> EN
-        MM -->|No | MZ --> EN
+        MM -->|No| MZ --> EN
         EN --> VA --> AC --> TE --> SUM --> STORE --> MORE
-        MORE -->|Yes — next song| PICK
-        MORE -->|No — all scored| DONE(["All 20 songs scored"])
+        MORE -->|Yes, next song| PICK
+        MORE -->|No, all scored| DONE["All 20 songs scored"]
     end
 
-    subgraph RANK["RANKING RULE — runs once on full list"]
+    subgraph RANK["RANKING RULE - runs once on full list"]
         direction TB
-        SORT["Sort all song, score pairs\ndescending by score"]
-        DIV["Diversity penalty\nartist appears > 2×  score × 0.50\ngenre  appears > 3×  score × 0.70"]
+        SORT["Sort all song and score pairs\ndescending by score"]
+        DIV["Diversity penalty\nartist more than 2x: score x 0.50\ngenre more than 3x: score x 0.70"]
         RESORT["Re-sort after\npenalty adjustments"]
         TOPK["Slice top-K results"]
 
@@ -136,8 +135,7 @@ flowchart TD
     end
 
     DONE --> RANK
-
-    RANK --> OUT(["Top-K Recommendations\ntitle · artist · genre · mood\nscore  ·  % match  ·  explanation"])
+    RANK --> OUT["Top-K Recommendations\ntitle - artist - genre - mood\nscore - percent match - explanation"]
 ```
 
 ---
