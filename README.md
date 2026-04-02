@@ -387,6 +387,29 @@ to `recommend_songs()`. The first three are standard benchmarks; the last five a
 **adversarial edge-case profiles** designed to expose specific weaknesses in the scoring
 logic identified from codebase analysis.
 
+### Terminal Screenshots
+
+**Screenshot 1** — Section 1: all five UserProfile taste profiles
+(Default Pop/Happy, Late Night Coder, Weekend Warrior, Sunday Morning, Dark Commute)
+
+![Terminal output — Section 1 taste profiles](images/results-1.png)
+
+---
+
+**Screenshot 2** — Section 2 (first half): standard benchmarks A–C and adversarial
+profiles D (High-Energy Melancholic) and E (Midpoint Collapse)
+
+![Terminal output — evaluation profiles A through E](images/results-2.png)
+
+---
+
+**Screenshot 3** — Section 2 (second half): adversarial profiles F (Niche Metal Fan),
+G (Acoustic Conflict), and H (Out-of-Range Tempo)
+
+![Terminal output — adversarial profiles F through H](images/results-3.png)
+
+---
+
 ### Standard Benchmarks
 
 | Label | Genre | Mood | Energy | Acoustic | What it tests |
